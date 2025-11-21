@@ -1,9 +1,16 @@
-path: C:/Users/toan1/OneDrive/Desktop/yolov5/data_train   # đường dẫn
-train: images/train  # thư mục ảnh train
-val: images/val      # thư mục ảnh val
+#path: C:/Users/toan1/OneDrive/Desktop/yolov5/data_train   # đường dẫn
+#train: images/train  # thư mục ảnh train
+#val: images/val      # thư mục ảnh val
+#
+## Classes
+#names:
+#  0: bong_tennis
+#  1: con_nguoi
+#  2: khu_chua_bong
 
-# Classes
-names:
-  0: bong_tennis
-  1: con_nguoi
-  2: khu_chua_bong
+train: C:/Users/toan1/OneDrive/Desktop/yolov5/data_train/images/train
+val: C:/Users/toan1/OneDrive/Desktop/yolov5/data_train/images/val
+
+nc: 3
+names: ['bong_tennis', 'con_nguoi', 'khu_chua_bong']
+
