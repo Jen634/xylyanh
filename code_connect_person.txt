@@ -29,45 +29,43 @@ SEND_INTERVAL = 0.05
 last_send_time = 0
 
 # Ngưỡng né người
-PERSON_AREA_THRESHOLD = 0.2  # Người chiếm > 15% màn hình → dừng khẩn cấp
-PERSON_CONF_THRESHOLD = 0.6  # Confidence tối thiểu để né
-PERSON_WARN_THRESHOLD = 0.05  # 5% màn hình → người ở rất xa → bỏ qua
-
+PERSON_AREA_THRESHOLD = 0.15  # Người chiếm > 15% màn hình → dừng khẩn cấp
+PERSON_CONF_THRESHOLD = 0.4   # Confidence tối thiểu để né
 
 @smart_inference_mode()
 def run(
-        weights=ROOT / "yolov5s.pt",
-        source=ROOT / "data_train/images",
-        data=ROOT / "data_train/data_train.yaml",
-        imgsz=(640, 640),
-        conf_thres=0.25,
-        iou_thres=0.45,
-        max_det=1000,
-        device="",
-        view_img=False,
-        save_txt=False,
-        save_format=0,
-        save_csv=False,
-        save_conf=False,
-        save_crop=False,
-        nosave=False,
-        classes=None,
-        agnostic_nms=False,
-        augment=False,
-        visualize=False,
-        update=False,
-        project=ROOT / "runs/detect",
-        name="exp",
-        exist_ok=False,
-        line_thickness=3,
-        hide_labels=False,
-        hide_conf=False,
-        half=False,
-        dnn=False,
-        vid_stride=1,
+    weights=ROOT / "yolov5s.pt",
+    source=ROOT / "data_train/images",
+    data=ROOT / "data_train/data_train.yaml",
+    imgsz=(640, 640),
+    conf_thres=0.25,
+    iou_thres=0.45,
+    max_det=1000,
+    device="",
+    view_img=False,
+    save_txt=False,
+    save_format=0,
+    save_csv=False,
+    save_conf=False,
+    save_crop=False,
+    nosave=False,
+    classes=None,
+    agnostic_nms=False,
+    augment=False,
+    visualize=False,
+    update=False,
+    project=ROOT / "runs/detect",
+    name="exp",
+    exist_ok=False,
+    line_thickness=3,
+    hide_labels=False,
+    hide_conf=False,
+    half=False,
+    dnn=False,
+    vid_stride=1,
 ):
     global arduino_mode, last_send_time
-
+    
     source = str(source)
     save_img = not nosave and not source.endswith(".txt")
     is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
@@ -137,7 +135,7 @@ def run(
 
     for path, im, im0s, vid_cap, s in dataset:
         update_arduino_mode()
-
+        
         with dt[0]:
             im = torch.from_numpy(im).to(model.device)
             im = im.half() if model.fp16 else im.float()
@@ -155,8 +153,7 @@ def run(
                     if pred is None:
                         pred = model(image, augment=augment, visualize=visualize_path).unsqueeze(0)
                     else:
-                        pred = torch.cat((pred, model(image, augment=augment, visualize=visualize_path).unsqueeze(0)),
-                                         dim=0)
+                        pred = torch.cat((pred, model(image, augment=augment, visualize=visualize_path).unsqueeze(0)), dim=0)
                 pred = [pred, None]
             else:
                 pred = model(im, augment=augment, visualize=visualize_path)
@@ -177,7 +174,7 @@ def run(
             s += "{:g}x{:g} ".format(*im.shape[2:])
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]
             annotator = Annotator(im0, line_width=line_thickness, example=str(names))
-
+            
             h, w = im0.shape[:2]
             frame_area = h * w
             region_width = w / 9
@@ -187,7 +184,7 @@ def run(
             best_target_conf = 0
             best_target_region = 5
             best_target_cls = -1
-
+            
             # Biến phát hiện người
             person_detected = False
             person_too_close = False
@@ -204,94 +201,80 @@ def run(
                 for *xyxy, conf, cls in reversed(det):
                     c = int(cls)
                     confidence = float(conf)
-
+                    
                     x1, y1, x2, y2 = [float(v) for v in xyxy]
                     center_x = (x1 + x2) / 2
                     bbox_area = (x2 - x1) * (y2 - y1)
                     area_ratio = bbox_area / frame_area
-
+                    
                     region_index = int((center_x / region_width) - 4)
                     region_index = max(-4, min(4, region_index))
 
                     # ===== XỬ LÝ NGƯỜI (CLASS 1) =====
-                    if c == 1 and confidence >= PERSON_CONF_THRESHOLD:  # Người tối thiểu để né
-
-
-                        # NGƯỠNG NGƯỜI XA -> KHÔNG ẢNH HƯỞNG ROBOT
-                        if area_ratio < PERSON_WARN_THRESHOLD:
-                            # Chỉ vẽ nhưng KHÔNG bật person_detected
-                            label = f"NGUOI_XA {conf:.2f} A:{area_ratio * 100:.1f}%"
-                            annotator.box_label(xyxy, label, color=(0, 255, 255))
-                            continue
-
-                        #person_detected = True
-                        else:
-                            # NGƯỜI ĐỦ GẦN -> BẬT CỜ XỬ LÝ
-                            person_detected = True
-
-                            # Kiểm tra người quá gần
-                            if area_ratio > PERSON_AREA_THRESHOLD:
-                                person_too_close = True
-
-                            # Lưu vùng có người lớn nhất
-                            if area_ratio > person_max_area:
-                                person_max_area = area_ratio
-                                person_region = region_index
-
-                            # Vẽ bbox người màu đỏ
-                            label = f"NGUOI {conf:.2f} R:{region_index} A:{area_ratio * 100:.0f}%"
-                            annotator.box_label(xyxy, label, color=(0, 0, 255))
-
+                    if c == 1 and confidence >= PERSON_CONF_THRESHOLD: # Người tối thiểu để né
+                        person_detected = True
+                        
+                        # Kiểm tra người có quá gần không
+                        if area_ratio > PERSON_AREA_THRESHOLD: # giới hạn ngươfi quá gần
+                            person_too_close = True
+                        
+                        # Lưu vùng của người lớn nhất
+                        if area_ratio > person_max_area:
+                            person_max_area = area_ratio
+                            person_region = region_index
+                        
+                        # Vẽ bbox người màu đỏ
+                        label = f"NGUOI {conf:.2f} R:{region_index} A:{area_ratio*100:.0f}%"
+                        annotator.box_label(xyxy, label, color=(0, 0, 255))
+                    
                     # ===== XỬ LÝ TARGET (BÓNG / KHU CHỨA) =====
-                    elif (arduino_mode == 1 and c == 0) or (arduino_mode == 2 and c == 2):  # Bóng hoặc khu chứa
+                    elif (arduino_mode == 1 and c == 0) or (arduino_mode == 2 and c == 2): # Bóng hoặc khu chứa
                         # Cập nhật target tốt nhất
                         if confidence > best_target_conf:
                             best_target_conf = confidence
                             best_target_region = region_index
                             best_target_cls = c
                             saw_target = True
-
+                        
                         label = f"{names[c]} {conf:.2f} R:{region_index}"
                         annotator.box_label(xyxy, label, color=colors(c, True))
-
+                    
                     else:
                         # Vẽ các class khác
                         if view_img:
                             label = f"{names[c]} {conf:.2f}"
                             annotator.box_label(xyxy, label, color=colors(c, True))
 
-
             # ===== QUYẾT ĐỊNH GỬI LỆNH =====
             if arduino:
                 if person_detected:
-
-                    # 1. NGƯỜI QUÁ GẦN → DỪNG KHẨN CẤP
                     if person_too_close:
+                        # NGƯỜI QUÁ GẦN → DỪNG KHẨN CẤP
                         send_to_arduino(1, 5, "urgent")
                         status = "🛑 DUNG KHAN CAP - NGUOI QUA GAN!"
-
-                    # 2. NGƯỜI Ở VỪA (5% → 20%) → NÉ
-                    else:  # ← Chỉ cần else, vì nếu vào đây = người 5-20%
-                        if person_region <= 0:
-                            send_to_arduino(1, -3, "urgent")
-                            status = "↪️ NE PHAI (nguoi ben trai)"
-                        else:
-                            send_to_arduino(1, 3, "urgent")
-                            status = "↩️ NE TRAI (nguoi ben phai)"
+                    elif person_region <= 0:
+                        # Người bên trái/giữa → né sang phải
+                        send_to_arduino(1, 3, "urgent")
+                        status = "↪️ NE PHAI (nguoi ben trai)"
+                    else:
+                        # Người bên phải → né sang trái
+                        send_to_arduino(1, -3, "urgent")
+                        status = "↩️ NE TRAI (nguoi ben phai)"
+                
                 elif saw_target:
-                    # Không có người → làm nhiệm vụ bình thường
+                    # Không có người, theo target bình thường
                     send_to_arduino(best_target_cls, best_target_region, "normal")
                     status = f"🎯 Theo target cls={best_target_cls} reg={best_target_region}"
-
+                
                 elif arduino_mode == 1:
-                    # Mode 1 → tìm bóng
+                    # Mode 1, không thấy gì → quay tìm
                     send_to_arduino(0, 2, "normal")
                     status = "🔄 Tim bong..."
-
+                
                 else:
-                    # Mode 2 → tìm khu chứa
-                    send_to_arduino(2, 3, "normal")
-                    status = "⏸️ Cho tim khu chua..."
+                    # Mode 2, không thấy khu → dừng chờ
+                    send_to_arduino(2, 5, "normal")
+                    status = "⏸️ Cho tim khu chua bong..."
 
             # ===== VẼ THÔNG TIN LÊN FRAME =====
             # Chia vùng
@@ -306,13 +289,13 @@ def run(
 
             # Thông tin
             cv2.putText(im0, f"MODE: {arduino_mode}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-
+            
             # Cảnh báo người
             if person_detected:
                 color = (0, 0, 255) if person_too_close else (0, 165, 255)
                 warn_text = "!! NGUOI QUA GAN !!" if person_too_close else f"Nguoi: vung {person_region}"
                 cv2.putText(im0, warn_text, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
-
+            
             if 'status' in locals():
                 cv2.putText(im0, status, (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
