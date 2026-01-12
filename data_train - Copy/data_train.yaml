@@ -1,6 +1,6 @@
-path: C:/Users/toan1/OneDrive/Desktop/yolov5/data_train   # đường dẫn
-train: images/train  # thư mục ảnh train
-val: images/val      # thư mục ảnh val
+path: C:/Users/toan1/OneDrive/Desktop/yolov5/data_train # đường dẫn
+train: images/train # thư mục ảnh train
+val: images/val # thư mục ảnh val
 
 # Classes
 names:

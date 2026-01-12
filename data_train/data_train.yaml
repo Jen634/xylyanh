@@ -12,5 +12,4 @@ train: C:/Users/toan1/OneDrive/Desktop/yolov5/data_train/images/train
 val: C:/Users/toan1/OneDrive/Desktop/yolov5/data_train/images/val
 
 nc: 3
-names: ['bong_tennis', 'con_nguoi', 'khu_chua_bong']
-
+names: ["bong_tennis", "con_nguoi", "khu_chua_bong"]

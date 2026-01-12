@@ -5,15 +5,17 @@ import argparse
 import csv
 import os
 import platform
-import sys
 from pathlib import Path
 
 import torch
-arduino_mode = 1 # default is 1 -> follow ball
+
+arduino_mode = 1  # default is 1 -> follow ball
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]
-from ultralytics.utils.plotting import Annotator, colors, save_one_box
+import time
 
+import serial
+from ultralytics.utils.plotting import Annotator, colors
 
 from models.common import DetectMultiBackend
 from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams
@@ -28,15 +30,12 @@ from utils.general import (
     cv2,
     increment_path,
     non_max_suppression,
-    print_args,
     scale_boxes,
     strip_optimizer,
     xyxy2xywh,
 )
 from utils.torch_utils import select_device, smart_inference_mode
 
-import serial
-import time
 
 @smart_inference_mode()
 def run(
@@ -70,7 +69,6 @@ def run(
     dnn=False,  # use OpenCV DNN for ONNX inference
     vid_stride=1,  # video frame-rate stride
 ):
-
     source = str(source)
     save_img = not nosave and not source.endswith(".txt")  # save inference images
     is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
@@ -106,27 +104,26 @@ def run(
     model.warmup(imgsz=(1 if pt or model.triton else bs, 3, *imgsz))  # warmup
     seen, windows, dt = 0, [], (Profile(device=device), Profile(device=device), Profile(device=device))
 
-    #khởi tạo cổng giao tiếp
+    # khởi tạo cổng giao tiếp
     try:
-        arduino = serial.Serial('COM7', 115200, timeout=1)
+        arduino = serial.Serial("COM7", 115200, timeout=1)
         time.sleep(2)
         print("Kết nối Arduino thành công.")
-        #mode = 1  # mode mặc định là 1
+        # mode = 1  # mode mặc định là 1
     except Exception as e:
         arduino = None
-        #mode = 1
+        # mode = 1
         print(f"Không thể mở cổng serial: {e}")
 
-    #kết thúc khởi tạo
+    # kết thúc khởi tạo
 
     # ==================== check mode from mega->nano-> pc ====================
-
 
     def update_arduino_mode():
         global arduino_mode
         if arduino and arduino.in_waiting:
             try:
-                line = arduino.readline().decode(encoding='utf-8', errors='ignore').strip()
+                line = arduino.readline().decode(encoding="utf-8", errors="ignore").strip()
                 print(f"[Serial] Nhận được: {line}")  # debug
                 if line.startswith("MODE:"):
                     mode_val = int(line.split(":")[1])
@@ -136,7 +133,7 @@ def run(
             except Exception as e:
                 print(f"Lỗi đọc chế độ từ Arduino: {e}")
 
-    #update mode
+    # update mode
     for path, im, im0s, vid_cap, s in dataset:
         update_arduino_mode()  # đọc chế độ từ nano
         with dt[0]:
@@ -259,8 +256,8 @@ def run(
                                 should_send = False
                                 if c == 1:
                                     print("")
-                                    #Không gửi gì nếu là con_nguoi
-                                    #print(f"[Skip] Bỏ qua class con_nguoi ({c})")
+                                    # Không gửi gì nếu là con_nguoi
+                                    # print(f"[Skip] Bỏ qua class con_nguoi ({c})")
                                 elif arduino_mode == 1 and c == 0:
                                     should_send = True
                                 elif arduino_mode == 2 and c == 2:
@@ -271,11 +268,11 @@ def run(
                                     arduino.write(data.encode())
                                     print(f"[Send] MODE {arduino_mode} - Gửi: {data.strip()}")
                                 else:
-                                    #print(f"[Skip] MODE {arduino_mode} - Bỏ qua class {c}")
-                                     print("")
+                                    # print(f"[Skip] MODE {arduino_mode} - Bỏ qua class {c}")
+                                    print("")
                             except Exception as e:
                                 print(f"Lỗi gửi Serial: {e}")
-                        #kết thúc đoạn guiwr
+                        # kết thúc đoạn guiwr
                         # Ghi nhãn có vị trí vùng
                         label = None if hide_labels else f"{names[c]} {conf:.2f} pos:{region_index}"
 
@@ -301,11 +298,11 @@ def run(
             # Fallback chỉ hoạt động khi đang ở chế độ theo dõi bóng
             if arduino and arduino_mode == 1:
                 try:
-                    if 'saw_ball' not in locals() or not saw_ball:
+                    if "saw_ball" not in locals() or not saw_ball:
                         fallback_region = 2  # quay phải
                         data = f"0 {fallback_region}\n"  # class 0 (bong_tennis), region = 2
                         arduino.write(data.encode())
-                        #print(f"[Fallback] MODE 1 - Không thấy bóng, gửi lệnh quay phải: {data.strip()}")
+                        # print(f"[Fallback] MODE 1 - Không thấy bóng, gửi lệnh quay phải: {data.strip()}")
                 except Exception as e:
                     print(f"Lỗi gửi Serial fallback: {e}")
             # Stream results
@@ -345,7 +342,7 @@ def run(
                 else:  # 'video' or 'stream'DD
                     # Đảm bảo danh sách đủ phần tử để tránh lỗi IndexError
                     while len(vid_path) <= i:
-                        vid_path.append('')
+                        vid_path.append("")
                     while len(vid_writer) <= i:
                         vid_writer.append(None)
 
@@ -359,8 +356,8 @@ def run(
                             h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                         else:
                             fps, w, h = 30, im0.shape[1], im0.shape[0]
-                        save_path = str(Path(save_path).with_suffix('.mp4'))
-                        vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+                        save_path = str(Path(save_path).with_suffix(".mp4"))
+                        vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
 
                     vid_writer[i].write(im0)
 
@@ -378,7 +375,6 @@ def run(
 
 
 def parse_opt():
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s.pt", help="model path or triton URL")
     parser.add_argument("--source", type=str, default=ROOT / "data/images", help="file/dir/URL/glob/screen/0(webcam)")
@@ -416,7 +412,7 @@ def parse_opt():
     parser.add_argument("--vid-stride", type=int, default=1, help="video frame-rate stride")
     opt = parser.parse_args()
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
-    #print_args(vars(opt))
+    # print_args(vars(opt))
     return opt
 
 
